@@ -1,23 +1,48 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { dashboardAPI } from '../../services/api';
+import { toast } from 'react-toastify';
 
 const SavedVehicles = () => {
-  // Mock saved vehicles data - would come from API
-  const savedVehicles = [
-    { 
-      vin: 'WBA7E2C30FG123456', 
-      model: '330i', 
-      year: 2023, 
-      image: 'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=300&q=80',
-      lastViewed: '2024-01-15'
-    },
-    { 
-      vin: 'WBA5E5C57FD567890', 
-      model: 'X5', 
-      year: 2022,
-      image: 'https://images.unsplash.com/photo-1549399542-7e82138ccf10?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=300&q=80',
-      lastViewed: '2024-01-10'
+  const [savedVehicles, setSavedVehicles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useSelector(state => state.auth);
+
+  useEffect(() => {
+    fetchSavedVehicles();
+  }, []);
+
+  const fetchSavedVehicles = async () => {
+    try {
+      const response = await dashboardAPI.getSavedVehicles();
+      setSavedVehicles(response.data);
+    } catch (error) {
+      toast.error('Failed to load saved vehicles');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const handleRemoveVehicle = async (vin) => {
+    try {
+      // This would call a backend endpoint to remove from saved
+      toast.info('Remove feature coming soon!');
+    } catch (error) {
+      toast.error('Failed to remove vehicle');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="card">
+        <div className="card-body text-center py-4">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="card">
@@ -29,41 +54,50 @@ const SavedVehicles = () => {
       </div>
       <div className="card-body">
         <div className="row">
-          {savedVehicles.map((vehicle, index) => (
+          {savedVehicles.map((historyItem, index) => (
             <div key={index} className="col-md-6 mb-4">
               <div className="card h-100">
                 <div className="position-relative">
                   <img 
-                    src={vehicle.image} 
-                    alt={vehicle.model}
+                    src={`https://images.unsplash.com/photo-1542362567-b07e54358753?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=300&q=80`} 
+                    alt={historyItem.vehicle_model}
                     className="card-img-top"
                     style={{ height: '200px', objectFit: 'cover' }}
                   />
                   <div className="position-absolute top-0 end-0 m-2">
-                    <button className="btn btn-sm btn-light">
+                    <button 
+                      className="btn btn-sm btn-light"
+                      onClick={() => handleRemoveVehicle(historyItem.vehicle.vin)}
+                    >
                       <i className="fas fa-times"></i>
                     </button>
                   </div>
                 </div>
                 <div className="card-body">
-                  <h6 className="card-title">{vehicle.model} ({vehicle.year})</h6>
+                  <h6 className="card-title">{historyItem.vehicle_model} ({historyItem.vehicle.model_year})</h6>
                   <p className="card-text">
                     <small className="text-muted">
-                      VIN: <code>{vehicle.vin}</code>
+                      VIN: <code>{historyItem.vehicle.vin}</code>
                     </small>
                   </p>
                   <p className="card-text">
                     <small className="text-muted">
-                      Last viewed: {new Date(vehicle.lastViewed).toLocaleDateString()}
+                      Last viewed: {new Date(historyItem.lookup_date).toLocaleDateString()}
                     </small>
                   </p>
+                  <span className={`badge ${historyItem.was_premium ? 'bg-success' : 'bg-secondary'}`}>
+                    {historyItem.was_premium ? 'Premium Report' : 'Basic Report'}
+                  </span>
                 </div>
                 <div className="card-footer bg-transparent">
                   <div className="d-flex gap-2">
-                    <button className="btn btn-sm btn-outline-primary flex-fill">
+                    <a 
+                      href={`/decode?vin=${historyItem.vehicle.vin}`}
+                      className="btn btn-sm btn-outline-primary flex-fill"
+                    >
                       <i className="fas fa-eye me-1"></i>
-                      View
-                    </button>
+                      View Again
+                    </a>
                     <button className="btn btn-sm btn-outline-secondary">
                       <i className="fas fa-download"></i>
                     </button>
@@ -79,8 +113,11 @@ const SavedVehicles = () => {
             <i className="fas fa-bookmark fa-3x mb-3"></i>
             <p>No saved vehicles yet</p>
             <p className="small">
-              Save vehicles to access them quickly later
+              Decode VINs to save them here for quick access
             </p>
+            <a href="/decode" className="btn btn-primary btn-sm">
+              Decode Your First VIN
+            </a>
           </div>
         )}
       </div>

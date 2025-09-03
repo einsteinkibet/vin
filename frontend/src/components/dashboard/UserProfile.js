@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { updateProfile } from '../../redux/slices/authSlice';
 import { toast } from 'react-toastify';
@@ -13,6 +13,17 @@ const UserProfile = () => {
     email: user?.email || '',
     marketing_consent: user?.marketing_consent || false
   });
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        first_name: user.first_name || '',
+        last_name: user.last_name || '',
+        email: user.email || '',
+        marketing_consent: user.marketing_consent || false
+      });
+    }
+  }, [user]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -14,6 +14,7 @@ from django.conf import settings
 from rest_framework import generics, status
 from django.contrib.auth import login as auth_login
 import stripe
+from rest_framework.views import APIView
 from .models import *
 from .serializers import *
 # Initialize Stripe
@@ -300,3 +301,115 @@ class HealthCheckViewSet(viewsets.ViewSet):
             'vehicle_count': BMWVehicle.objects.count(),
             'user_count': User.objects.count()
         })
+
+# ===== DASHBOARD VIEWS =====
+class SavedVehiclesViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def list(self, request):
+        # Get user's saved vehicles from lookup history
+        saved_vehicles = VINLookupHistory.objects.filter(
+            user=request.user
+        ).select_related('vehicle').order_by('-lookup_date')[:10]
+        
+        serializer = VINLookupHistorySerializer(saved_vehicles, many=True)
+        return Response(serializer.data)
+
+class UsageStatsViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def list(self, request):
+        from django.db.models import Count, Sum
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        # Calculate usage statistics
+        today = timezone.now().date()
+        month_start = today.replace(day=1)
+        
+        stats = {
+            'total_lookups': VINLookupHistory.objects.filter(user=request.user).count(),
+            'premium_lookups': VINLookupHistory.objects.filter(
+                user=request.user, was_premium=True
+            ).count(),
+            'lookups_this_month': VINLookupHistory.objects.filter(
+                user=request.user, lookup_date__gte=month_start
+            ).count(),
+            'saved_vehicles': VINLookupHistory.objects.filter(
+                user=request.user
+            ).values('vehicle').distinct().count(),
+        }
+        
+        return Response(stats)
+
+# ===== USER PROFILE VIEW =====
+class UserProfileView(generics.RetrieveUpdateAPIView):
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+# ===== VIN HISTORY VIEW =====
+class VINHistoryViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = VINLookupHistorySerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        return VINLookupHistory.objects.filter(
+            user=self.request.user
+        ).select_related('vehicle').order_by('-lookup_date')
+
+# ===== USER PROFILE UPDATE =====
+class UserProfileUpdateView(generics.UpdateAPIView):
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+# ===== DATA EXPORT =====
+class DataExportView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        from django.http import JsonResponse
+        from datetime import datetime
+        
+        # Get user data
+        user_data = UserSerializer(request.user).data
+        
+        # Get user's VIN history
+        vin_history = VINLookupHistory.objects.filter(user=request.user)
+        history_data = VINLookupHistorySerializer(vin_history, many=True).data
+        
+        export_data = {
+            'user': user_data,
+            'vin_history': history_data,
+            'export_date': datetime.now().isoformat(),
+            'exported_from': 'BimmerVIN'
+        }
+        
+        return Response(export_data)
+
+# ===== VEHICLE OPTIONS =====
+class VehicleOptionsView(APIView):
+    permission_classes = [permissions.AllowAny]
+    
+    def get(self, request, vin):
+        try:
+            vehicle = BMWVehicle.objects.get(vin=vin)
+            options = OptionCompatibility.objects.filter(vehicle=vehicle).select_related('option')
+            
+            options_data = VehicleOptionSerializer(
+                [oc.option for oc in options], 
+                many=True
+            ).data
+            
+            return Response({
+                'vehicle': BMWVehicleSerializer(vehicle).data,
+                'options': options_data
+            })
+            
+        except BMWVehicle.DoesNotExist:
+            return Response({'error': 'Vehicle not found'}, status=404)        

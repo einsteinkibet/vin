@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { authAPI } from '../../../services/api';
+import { authAPI } from '../../services/api';
+import React, { useEffect, useState } from 'react';
 
 // Async thunks
 // Async thunks using the new API service

@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { vinAPI } from '../../../services/api';
+import { vinAPI } from '../../services/api';
 
 export const decodeVIN = createAsyncThunk(
   'vin/decode',

@@ -87,3 +87,33 @@ const OptionsList = ({ vehicle }) => {
 };
 
 export default OptionsList;
+
+// import React, { useState, useEffect } from 'react';
+// import { vinAPI } from '../../services/api';
+// import { toast } from 'react-toastify';
+
+// const OptionsList = ({ vehicle }) => {
+//   const [selectedCategory, setSelectedCategory] = useState('all');
+//   const [options, setOptions] = useState([]);
+//   const [loading, setLoading] = useState(true);
+
+//   useEffect(() => {
+//     fetchVehicleOptions();
+//   }, [vehicle]);
+
+//   const fetchVehicleOptions = async () => {
+//     if (!vehicle?.vin) return;
+    
+//     try {
+//       const response = await vinAPI.getVehicleOptions(vehicle.vin);
+//       setOptions(response.data.options || []);
+//     } catch (error) {
+//       toast.error('Failed to load vehicle options');
+//       setOptions([]);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   // ... rest of the component ...
+// };

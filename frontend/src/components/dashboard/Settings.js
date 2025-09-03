@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
+import { authAPI } from '../../services/api';
 
 const Settings = () => {
   const { user } = useSelector(state => state.auth);
@@ -11,6 +12,7 @@ const Settings = () => {
     securityAlerts: true,
     productUpdates: true
   });
+  const [loading, setLoading] = useState(false);
 
   const handleNotificationChange = (key) => {
     setNotifications(prev => ({
@@ -20,12 +22,33 @@ const Settings = () => {
   };
 
   const handleSaveSettings = async () => {
+    setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await authAPI.updateProfile({
+        marketing_consent: notifications.marketingEmails
+      });
       toast.success('Settings saved successfully');
     } catch (error) {
       toast.error('Failed to save settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+    const handleExportData = async () => {
+    try {
+      const response = await authAPI.exportData();
+      // Create download link
+      const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'bimmervin-data-export.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Data exported successfully');
+    } catch (error) {
+      toast.error('Failed to export data');
     }
   };
 

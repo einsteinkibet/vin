@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base API URL - change this in production
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -46,7 +46,8 @@ export const authAPI = {
   register: (userData) => api.post('/auth/register/', userData),
   logout: () => api.post('/auth/logout/'),
   getProfile: () => api.get('/auth/profile/'),
-  updateProfile: (data) => api.put('/auth/profile/', data),
+  updateProfile: (data) => api.put('/user/profile/update/', data),
+  exportData: () => api.get('/user/export-data/'),
 };
 
 // VIN API endpoints
@@ -97,6 +98,13 @@ export const setAuthToken = (token) => {
 
 export const getAuthToken = () => {
   return localStorage.getItem('authToken');
+};
+
+// Dashboard API endpoints
+export const dashboardAPI = {
+  getSavedVehicles: () => api.get('/dashboard/saved-vehicles/'),
+  getUsageStats: () => api.get('/dashboard/usage-stats/'),
+  getVINHistory: () => api.get('/dashboard/vin-history/'),
 };
 
 export default api;

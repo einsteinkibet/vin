@@ -1,15 +1,48 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { dashboardAPI } from '../../services/api';
+import { toast } from 'react-toastify';
 
 const VINHistory = () => {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
   const { user } = useSelector(state => state.auth);
-  // Mock history data - would come from API
-  const history = [
-    { vin: 'WBA7E2C30FG123456', model: '330i', year: 2023, date: '2024-01-15', premium: true },
-    { vin: 'WBA5E5C57FD567890', model: 'X5', year: 2022, date: '2024-01-10', premium: false },
-    { vin: 'WBA3B1C58JF789012', model: 'M3', year: 2024, date: '2024-01-05', premium: true },
-    { vin: 'WBA8E9C52JG345678', model: '540i', year: 2023, date: '2023-12-28', premium: true }
-  ];
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
+  const fetchHistory = async () => {
+    try {
+      const response = await dashboardAPI.getVINHistory();
+      setHistory(response.data);
+    } catch (error) {
+      toast.error('Failed to load history');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearHistory = async () => {
+    try {
+      // This would call a backend endpoint to clear history
+      toast.info('Clear history feature coming soon!');
+    } catch (error) {
+      toast.error('Failed to clear history');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="card">
+        <div className="card-body text-center py-4">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="card">
@@ -37,20 +70,23 @@ const VINHistory = () => {
               {history.map((item, index) => (
                 <tr key={index}>
                   <td>
-                    <code>{item.vin}</code>
+                    <code>{item.vehicle.vin}</code>
                   </td>
-                  <td>{item.model}</td>
-                  <td>{item.year}</td>
-                  <td>{new Date(item.date).toLocaleDateString()}</td>
+                  <td>{item.vehicle_model}</td>
+                  <td>{item.vehicle.model_year}</td>
+                  <td>{new Date(item.lookup_date).toLocaleDateString()}</td>
                   <td>
-                    <span className={`badge ${item.premium ? 'bg-success' : 'bg-secondary'}`}>
-                      {item.premium ? 'Premium' : 'Basic'}
+                    <span className={`badge ${item.was_premium ? 'bg-success' : 'bg-secondary'}`}>
+                      {item.was_premium ? 'Premium' : 'Basic'}
                     </span>
                   </td>
                   <td>
-                    <button className="btn btn-sm btn-outline-primary">
+                    <a 
+                      href={`/decode?vin=${item.vehicle.vin}`}
+                      className="btn btn-sm btn-outline-primary"
+                    >
                       <i className="fas fa-eye"></i>
-                    </button>
+                    </a>
                   </td>
                 </tr>
               ))}
@@ -71,9 +107,13 @@ const VINHistory = () => {
         {history.length > 0 && (
           <div className="d-flex justify-content-between align-items-center mt-3">
             <small className="text-muted">
-              Showing {history.length} of {history.length} lookups
+              Showing {history.length} lookups
             </small>
-            <button className="btn btn-sm btn-outline-secondary">
+            <button 
+              className="btn btn-sm btn-outline-secondary"
+              onClick={handleClearHistory}
+            >
+              <i className="fas fa-trash me-2"></i>
               Clear History
             </button>
           </div>
