@@ -3,7 +3,15 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import './custom-bootstrap.scss'; // Create this file as shown earlier
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap/dist/js/bootstrap.bundle.min.js';
+import '@fortawesome/fontawesome-free/css/all.min.css';
+import './styles/custom.css';
+import 'react-toastify/dist/ReactToastify.css';
 
+// Instead of importing bootstrap.min.css, import your custom file:
+// import './custom-bootstrap.scss';
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>

@@ -1,0 +1,149 @@
+/* Custom styles for BimmerVIN */
+.hero-section {
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+}
+
+.feature-icon {
+  transition: transform 0.3s ease;
+}
+
+.card:hover .feature-icon {
+  transform: scale(1.1);
+}
+
+.navbar-brand {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.btn {
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+}
+
+.card {
+  border-radius: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: none;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+.form-control {
+  border-radius: 8px;
+  border: 2px solid #e9ecef;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-control:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.6s ease-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .display-4 {
+    font-size: 2.5rem;
+  }
+  
+  .hero-section {
+    text-align: center;
+    padding: 2rem 0;
+  }
+  
+  .navbar-nav {
+    text-align: center;
+  }
+}
+
+/* Custom utility classes */
+.text-gradient {
+  background: linear-gradient(135deg, #3498db, #2c3e50);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hover-lift {
+  transition: transform 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-3px);
+}
+
+/* Sidebar styles */
+.sidebar {
+  min-width: 250px;
+  background: #2c3e50;
+  min-height: 100vh;
+}
+
+.sidebar .nav-link {
+  color: white;
+  padding: 0.75rem 1rem;
+  margin: 0.25rem 0;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #3498db;
+}
+
+/* Table improvements */
+.table-hover tbody tr {
+  transition: background-color 0.3s ease;
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(52, 152, 219, 0.1);
+}
+
+/* Badge improvements */
+.badge {
+  font-weight: 500;
+  padding: 0.5em 0.75em;
+}
+
+/* Modal improvements */
+.modal-content {
+  border-radius: 12px;
+  border: none;
+}
+
+.modal-header {
+  border-bottom: 1px solid #e9ecef;
+  padding: 1.5rem;
+}
+
+.modal-footer {
+  border-top: 1px solid #e9ecef;
+  padding: 1.5rem;
+}

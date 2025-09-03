@@ -14,7 +14,6 @@ cffi==1.17.1
 chardet==5.2.0
 charset-normalizer==3.4.1
 click==8.1.8
-cryptography @ file:///home/builder/.termux-build/python-cryptography/src
 Deprecated==1.2.18
 distlib==0.3.9
 dj-database-url==3.0.1
@@ -49,11 +48,9 @@ markdown-it-py==3.0.0
 MarkupSafe==3.0.2
 mdurl==0.1.2
 multidict==6.6.3
-numpy @ file:///home/builder/.termux-build/python-numpy/src/dist/numpy-2.2.5-cp312-cp312-linux_aarch64.whl#sha256=bb263430c58123c72e01dae41691aa54d2d399cc779d2e77fbf8b41564156a4b
 ordered-set==4.1.0
 packaging==24.2
 panda==0.3.1
-pandas @ file:///home/builder/.termux-build/python-pandas/src/dist/pandas-2.2.3-cp312-cp312-linux_aarch64.whl#sha256=e432b77b9c8f1bdb0448425ce1e03ac741b477fe9bcde42dab82cec19a797cee
 pillow==11.1.0
 pkg==0.2
 platformdirs==4.3.6

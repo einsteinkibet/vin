@@ -1,0 +1,38 @@
+/* custom-bootstrap.css - Use this instead of .scss for now */
+
+/* Override Bootstrap variables using CSS variables */
+:root {
+  --bs-primary: #3498db;
+  --bs-secondary: #2c3e50;
+  --bs-success: #27ae60;
+  --bs-danger: #e74c3c;
+  --bs-warning: #f39c12;
+  --bs-info: #17a2b8;
+  --bs-light: #ecf0f1;
+  --bs-dark: #2c3e50;
+  
+  --bs-border-radius: 8px;
+  --bs-border-radius-sm: 6px;
+  --bs-border-radius-lg: 12px;
+}
+
+/* Custom styles that would normally be in SCSS */
+.btn {
+  border-radius: var(--bs-border-radius);
+  font-weight: 500;
+}
+
+.card {
+  border-radius: var(--bs-border-radius-lg);
+  border: none;
+}
+
+.form-control {
+  border-radius: var(--bs-border-radius);
+  border: 2px solid #e9ecef;
+}
+
+.form-control:focus {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
