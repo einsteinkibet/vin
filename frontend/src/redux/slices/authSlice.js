@@ -1,13 +1,22 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { authAPI } from '../../../services/api';
 
 // Async thunks
+// Async thunks using the new API service
 export const login = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
     try {
-      const response = await axios.post('/api/auth/login/', credentials);
-      return response.data;
+      const response = await authAPI.login(credentials);
+      const { token, user } = response.data;
+      
+      // Store token and user data
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      return { user, token };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Login failed');
     }
@@ -18,10 +27,31 @@ export const register = createAsyncThunk(
   'auth/register',
   async (userData, { rejectWithValue }) => {
     try {
-      const response = await axios.post('/api/auth/register/', userData);
-      return response.data;
+      const response = await authAPI.register(userData);
+      const { token, user } = response.data;
+      
+      // Store token and user data
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      return { user, token };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Registration failed');
+    }
+  }
+);
+
+export const logout = createAsyncThunk(
+  'auth/logout',
+  async (_, { rejectWithValue }) => {
+    try {
+      await authAPI.logout();
+      // Clear local storage
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      return null;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Logout failed');
     }
   }
 );
@@ -84,5 +114,5 @@ const authSlice = createSlice({
 });
 
 // MAKE SURE TO EXPORT updateProfile HERE TOO!
-export const { logout, clearError, updateProfile } = authSlice.actions;
+export const { clearError, updateProfile } = authSlice.actions;
 export default authSlice.reducer;

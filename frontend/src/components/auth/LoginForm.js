@@ -10,7 +10,6 @@ const LoginForm = ({ onSwitchMode, onSuccess }) => {
   });
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
-  const { error } = useSelector(state => state.auth);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,7 +25,7 @@ const LoginForm = ({ onSwitchMode, onSuccess }) => {
       setLoading(false);
     }
   };
-
+  
   const handleChange = (e) => {
     setFormData(prev => ({
       ...prev,

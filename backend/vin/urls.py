@@ -4,22 +4,28 @@ from . import views
 
 router = DefaultRouter()
 
-# Auto-register all ViewSets (NO NEED TO IMPORT EACH ONE INDIVIDUALLY)
-for attr_name in dir(views):
-    attr = getattr(views, attr_name)
-    if isinstance(attr, type) and issubclass(attr, viewsets.ViewSet) and attr != viewsets.ViewSet:
-        # Generate base name from class name (remove 'ViewSet')
-        base_name = attr_name.replace('ViewSet', '').lower()
-        router.register(base_name, attr, basename=base_name)
-
-# Manual registration for views that don't follow the pattern
-router.register('vin/decode', views.VINDecodeViewSet, basename='vin-decode')
-router.register('payment', views.PaymentViewSet, basename='payment')
-router.register('webhook/stripe', views.StripeWebhookViewSet, basename='stripe-webhook')
-router.register('affiliate', views.AffiliateViewSet, basename='affiliate')
-router.register('health', views.HealthCheckViewSet, basename='health')
+# Manual registration
+router.register('users', views.UserViewSet, basename='user')
+router.register('vehicles', views.BMWVehicleViewSet, basename='vehicle')
+router.register('content', views.ContentPageViewSet, basename='content')
 
 urlpatterns = [
-    path('api/', include(router.urls)),
-    path('api/auth/', include('rest_framework.urls')),
+    path('', include(router.urls)),
+    
+    # Auth endpoints
+    path('auth/register/', views.RegisterView.as_view(), name='register'),
+    path('auth/login/', views.LoginView.as_view(), name='login'),
+    path('auth/logout/', views.logout_view, name='logout'),
+    path('auth/profile/', views.ProfileView.as_view(), name='profile'),
+    
+    # Custom endpoints
+    path('vin/decode/', views.VINDecodeViewSet.as_view({'post': 'create'}), name='vin-decode'),
+    path('payment/create/', views.PaymentViewSet.as_view({'post': 'create'}), name='payment-create'),
+    path('webhook/stripe/', views.StripeWebhookViewSet.as_view({'post': 'create'}), name='stripe-webhook'),
+    path('affiliate/', views.AffiliateViewSet.as_view({'get': 'list'}), name='affiliate-list'),
+    path('affiliate/<int:pk>/click/', views.AffiliateViewSet.as_view({'post': 'click'}), name='affiliate-click'),
+    path('health/', views.HealthCheckViewSet.as_view({'get': 'list'}), name='health-check'),
+    
+    # DRF auth URLs for browsable API - KEEP THIS ONLY ONCE
+    path('auth-api/', include('rest_framework.urls', namespace='rest_framework')),
 ]

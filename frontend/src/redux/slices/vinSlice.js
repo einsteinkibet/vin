@@ -1,11 +1,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { vinAPI } from '../../../services/api';
 
 export const decodeVIN = createAsyncThunk(
   'vin/decode',
   async (vin, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`/api/vin/decode/${vin}`);
+      const response = await vinAPI.decode(vin);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'VIN decoding failed');

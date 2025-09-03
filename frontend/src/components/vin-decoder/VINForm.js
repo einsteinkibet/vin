@@ -7,7 +7,6 @@ const VINForm = () => {
   const [vin, setVin] = useState('');
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
-  const { currentVehicle, error } = useSelector(state => state.vin);
   const { isAuthenticated, user } = useSelector(state => state.auth);
 
   const handleSubmit = async (e) => {

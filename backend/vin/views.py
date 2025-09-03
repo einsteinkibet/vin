@@ -7,23 +7,75 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.db.models import Q, Count, F
 from django.utils import timezone
+from rest_framework.authtoken.models import Token
+from rest_framework.decorators import api_view, permission_classes
+from django.contrib.auth import login as auth_login
 from django.conf import settings
+from rest_framework import generics, status
+from django.contrib.auth import login as auth_login
 import stripe
-from .models import (
-    User, BMWVehicle, VehicleOption, OptionCompatibility, 
-    SubscriptionPlan, UserSubscription, PaymentTransaction,
-    AffiliateProduct, AffiliateClick, VINLookupHistory,
-    UserEvent, DataQualityIssue, APIKey, APIRequestLog, ContentPage
-)
-from .serializers import (
-    UserSerializer, BMWVehicleSerializer, VehicleOptionSerializer,
-    SubscriptionPlanSerializer, UserSubscriptionSerializer,
-    PaymentTransactionSerializer, AffiliateProductSerializer,
-    VINLookupHistorySerializer, ContentPageSerializer
-)
-
+from .models import *
+from .serializers import *
 # Initialize Stripe
 stripe.api_key = settings.STRIPE_SECRET_KEY
+
+# ===== AUTH VIEWS =====
+class RegisterView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserRegistrationSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        
+        # Create auth token
+        token, created = Token.objects.get_or_create(user=user)
+        
+        return Response({
+            'user': UserSerializer(user).data,
+            'token': token.key
+        }, status=status.HTTP_201_CREATED)
+
+class LoginView(generics.GenericAPIView):
+    serializer_class = UserLoginSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data
+        
+        # Create or get auth token
+        token, created = Token.objects.get_or_create(user=user)
+        
+        # Log the user in
+        auth_login(request, user)
+        
+        return Response({
+            'user': UserSerializer(user).data,
+            'token': token.key
+        })
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def logout_view(request):
+    try:
+        # Delete the token
+        request.user.auth_token.delete()
+    except:
+        pass
+    
+    return Response({'detail': 'Successfully logged out.'})
+
+# ===== PROFILE VIEW =====
+class ProfileView(generics.RetrieveUpdateAPIView):
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
 
 # ===== BASE VIEWSETS =====
 class BaseViewSet(viewsets.ModelViewSet):
