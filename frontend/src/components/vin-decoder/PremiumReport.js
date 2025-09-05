@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import VehicleImage from './VehicleImage';
 import OptionsList from './OptionsList';
 import Specifications from './Specifications';
+import VehicleHistory from './VehicleHistory';
 
 const PremiumReport = () => {
   const { currentVehicle } = useSelector(state => state.vin);
@@ -83,9 +84,15 @@ const PremiumReport = () => {
         {/* Factory Options */}
         <OptionsList vehicle={currentVehicle} />
         
+        {/* Vehicle History - NEW SECTION */}
+        <VehicleHistory />
+        
         {/* Action Buttons */}
         <div className="text-center mt-4">
-          <ReportPDF vehicle={currentVehicle} />
+          <button className="btn btn-primary">
+            <i className="fas fa-download me-2"></i>
+            Download PDF Report
+          </button>
           <button className="btn btn-outline-primary ms-2">
             <i className="fas fa-bookmark me-2"></i>
             Save Vehicle
@@ -104,31 +111,4 @@ const SpecificationItem = ({ label, value }) => (
   </div>
 );
 
-
-
-
-import VehicleHistory from './VehicleHistory';
-
-const PremiumReport = () => {
-  // ... existing code ...
-  
-  return (
-    <div className="card">
-      <div className="card-header bg-success text-white">
-        <h4 className="mb-0">
-          <i className="fas fa-crown me-2"></i>
-          Premium Vehicle Report
-        </h4>
-      </div>
-      
-      <div className="card-body">
-        {/* ... existing vehicle info ... */}
-        
-        {/* ADD THIS NEW SECTION */}
-        <VehicleHistory />
-        
-        {/* ... existing options list and other components ... */}
-      </div>
-    </div>
-  );
-};
+export default PremiumReport;

@@ -12,12 +12,39 @@ const VINHistory = () => {
     fetchHistory();
   }, []);
 
+
   const fetchHistory = async () => {
     try {
       const response = await dashboardAPI.getVINHistory();
-      setHistory(response.data);
+      console.log('VIN History API Response:', response); // DEBUG
+      console.log('Response data:', response.data); // DEBUG
+      
+      // Handle different response structures
+      let historyData = response.data;
+      
+      // If response.data is an object with a results property
+      if (response.data && response.data.results) {
+        historyData = response.data.results;
+      }
+      // If response.data is an object with a history property  
+      else if (response.data && response.data.history) {
+        historyData = response.data.history;
+      }
+      // If response.data is already an array
+      else if (Array.isArray(response.data)) {
+        historyData = response.data;
+      }
+      // If it's something else, default to empty array
+      else {
+        console.warn('Unexpected API response format:', response.data);
+        historyData = [];
+      }
+      
+      setHistory(historyData);
     } catch (error) {
+      console.error('Error fetching history:', error);
       toast.error('Failed to load history');
+      setHistory([]); // Ensure it's always an array
     } finally {
       setLoading(false);
     }

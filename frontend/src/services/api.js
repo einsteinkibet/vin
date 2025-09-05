@@ -27,19 +27,41 @@ api.interceptors.request.use(
 );
 
 // Response interceptor to handle errors
+const MAX_RETRIES = 2;
+const RETRY_DELAY = 1000; // 1 second
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Update the response interceptor to handle retries
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
+  async (error) => {
+    const { config, response } = error;
+    
+    if (!config || !config.retryCount) {
+      config.retryCount = 0;
+    }
+    
+    // Retry on network errors or 5xx server errors
+    if (config.retryCount < MAX_RETRIES && 
+        (!response || (response.status >= 500 && response.status <= 599))) {
+      
+      config.retryCount += 1;
+      await delay(RETRY_DELAY * config.retryCount);
+      
+      return api(config);
+    }
+    
+    if (response?.status === 401) {
       // Token expired or invalid
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
+    
     return Promise.reject(error);
   }
 );
-
 // Auth API endpoints
 export const authAPI = {
   login: (credentials) => api.post('/auth/login/', credentials),
@@ -105,6 +127,27 @@ export const dashboardAPI = {
   getSavedVehicles: () => api.get('/dashboard/saved-vehicles/'),
   getUsageStats: () => api.get('/dashboard/usage-stats/'),
   getVINHistory: () => api.get('/dashboard/vin-history/'),
+};
+
+
+// Add vehicle history endpoint
+export const vehicleHistoryAPI = {
+  getHistory: (vin) => api.get(`/vehicles/${vin}/history/`),
+  getAccidents: (vin) => api.get(`/vehicles/${vin}/accidents/`),
+  getOwners: (vin) => api.get(`/vehicles/${vin}/owners/`),
+  getServices: (vin) => api.get(`/vehicles/${vin}/services/`),
+  getRecalls: (vin) => api.get(`/vehicles/${vin}/recalls/`),
+};
+
+export const analyticsAPI = {
+  getLookupStats: (days = 30) => api.get(`/analytics/lookups/?days=${days}`),
+  getUserGrowth: (days = 90) => api.get(`/analytics/users/?days=${days}`),
+  getRevenueStats: (days = 30) => api.get(`/analytics/revenue/?days=${days}`),
+};
+
+export const webhookAPI = {
+  testStripe: () => api.post('/webhook/test/stripe/'),
+  testPaystack: () => api.post('/webhook/test/paystack/'),
 };
 
 export default api;

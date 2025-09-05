@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import PaymentButton from './../components/payment/PaymentButton';
 
 const PricingPage = () => {
   const { isAuthenticated, user } = useSelector(state => state.auth);
@@ -167,27 +168,7 @@ const PricingPage = () => {
                   verified for accuracy. We maintain a 99.8% accuracy rate.
                 </p>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default PricingPage;
-
-
-import PaymentButton from '../components/payment/PaymentButton';
-
-const PricingPage = () => {
-  // ... existing code ...
-  
-  return (
-    <div className="container py-5">
-      {/* ... existing pricing cards ... */}
-      
-      <div className="col-md-4 mb-4">
+                    <div className="col-md-4 mb-4">
         <div className="card h-100">
           <div className="card-body">
             <h5 className="card-title">Premium Report</h5>
@@ -200,6 +181,12 @@ const PricingPage = () => {
           </div>
         </div>
       </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
+
+export default PricingPage;

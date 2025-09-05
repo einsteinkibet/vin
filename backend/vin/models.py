@@ -26,12 +26,12 @@ class BMWVehicle(models.Model):
     model = models.CharField(max_length=100)
     model_year = models.IntegerField()
     production_date = models.DateField(null=True, blank=True)
-    series = models.CharField(max_length=50)
-    body_type = models.CharField(max_length=50)
-    engine_code = models.CharField(max_length=50)
-    transmission_type = models.CharField(max_length=50)
-    drive_type = models.CharField(max_length=20)
-    fuel_type = models.CharField(max_length=30)
+    series = models.CharField(max_length=50, null=True, blank=True)  # Make nullable
+    body_type = models.CharField(max_length=50, null=True, blank=True)  # Make nullable
+    engine_code = models.CharField(max_length=50, null=True, blank=True)  # Make nullable
+    transmission_type = models.CharField(max_length=50, null=True, blank=True)  # Make nullable
+    drive_type = models.CharField(max_length=20, null=True, blank=True)  # Make nullable
+    fuel_type = models.CharField(max_length=30, null=True, blank=True)  # Make nullable
     assembly_plant = models.CharField(max_length=50, blank=True, null=True)
     base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     horsepower = models.IntegerField(null=True, blank=True)
@@ -144,9 +144,8 @@ class PaymentTransaction(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     vin = models.CharField(max_length=17)
-    payment_reference = models.CharField(max_length=100, unique=True)
+    payment_reference = models.CharField(max_length=100, unique=True, default='temp_ref_001')    
     payment_gateway = models.CharField(max_length=20, default='paystack')
-    currency = models.CharField(max_length=3, default='KES')
     
     class Meta:
         db_table = 'payment_transactions'

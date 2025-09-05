@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
+import PaymentButton from '../payment/PaymentButton';
 
 const BasicReport = () => {
   const { currentVehicle } = useSelector(state => state.vin);
@@ -63,14 +64,18 @@ const BasicReport = () => {
             <i className="fas fa-lock me-3 fa-2x"></i>
             <div>
               <h6 className="mb-1">Unlock Full Vehicle Report</h6>
-              <p className="mb-0">
-                Get complete access to all factory options, detailed specifications, 
-                production data, and premium features.
+              <p className="mb-2">
+                Get complete access to accident history, ownership records, service history, 
+                recall information, and premium features.
               </p>
               {isAuthenticated ? (
-                <Link to="/pricing" className="btn btn-primary btn-sm mt-2">
-                  Upgrade to Premium
-                </Link>
+                <PaymentButton 
+                  planId="premium" 
+                  amount={500}  // KES 500 for premium
+                  vin={currentVehicle.vin}
+                  className="btn btn-primary btn-sm mt-2"
+                  text="Upgrade to Premium"
+                />
               ) : (
                 <Link to="/register" className="btn btn-primary btn-sm mt-2">
                   Sign Up for Free
@@ -85,31 +90,3 @@ const BasicReport = () => {
 };
 
 export default BasicReport;
-
-
-import PaymentButton from '../payment/PaymentButton';
-
-const BasicReport = () => {
-  // ... existing code ...
-  
-  return (
-    <div className="card">
-      {/* ... existing code ... */}
-      
-      <div className="alert alert-info mt-4">
-        <div className="d-flex align-items-center">
-          <i className="fas fa-lock me-3 fa-2x"></i>
-          <div>
-            <h6 className="mb-1">Unlock Full Vehicle Report</h6>
-            <p className="mb-2">Get complete access to accident history, ownership records, and premium features.</p>
-            <PaymentButton 
-              planId="premium" 
-              amount={500}  // KES 500 for premium
-              vin={currentVehicle.vin}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};

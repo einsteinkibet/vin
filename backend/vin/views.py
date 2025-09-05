@@ -1,5 +1,5 @@
 from django.shortcuts import render
-
+import requests
 # Create your views here.
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
@@ -13,13 +13,13 @@ from django.contrib.auth import login as auth_login
 from django.conf import settings
 from rest_framework import generics, status
 from django.contrib.auth import login as auth_login
-import stripe
+# import stripe
 from rest_framework.views import APIView
 from .models import *
 from .serializers import *
 from .paystack_handler import PaystackPayment
 
-stripe.api_key = settings.STRIPE_SECRET_KEY
+# stripe.api_key = settings.STRIPE_SECRET_KEY
 
 # ===== AUTH VIEWS =====
 class RegisterView(generics.CreateAPIView):
@@ -129,28 +129,50 @@ class BMWVehicleViewSet(BaseViewSet):
         return Response(serializer.data)
 
 
-# ===== VIN DECODER VIEW =====
+# ===== VIN DECODER VIEW ===== 
 class VINDecodeViewSet(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
     
     def create(self, request):
+        print(f"=== VIN DECODE REQUEST ===")
+        print(f"Request data: {request.data}")
+        print(f"User: {request.user}")
+        print(f"Authenticated: {request.user.is_authenticated}")
+        
         vin = request.data.get('vin', '').upper().strip()
+        print(f"Extracted VIN: '{vin}'")
+        
+        if not vin:
+            print("ERROR: No VIN provided")
+            return Response({'error': 'VIN is required'}, status=400)
+        
+        if len(vin) != 17:
+            print(f"ERROR: VIN length is {len(vin)}, expected 17")
+            return Response({'error': 'VIN must be 17 characters'}, status=400)
         
         try:
             # Check cache first
+            print("Checking cache for VIN...")
             cached_vehicle = BMWVehicle.objects.filter(vin=vin).first()
             if cached_vehicle:
+                print(f"Found cached vehicle: {cached_vehicle.vin}")
                 return self._prepare_response(
                     BMWVehicleSerializer(cached_vehicle).data, 
                     request.user
                 )
             
+            print("No cached vehicle found, fetching from NHTSA...")
             # Get enhanced data with history
             vehicle_data = self._get_vehicle_data(vin)
-            history_data = data_provider.get_vehicle_history(vin)
+            print(f"Vehicle data retrieved: {vehicle_data}")
             
+            # For now, skip history data until basic decoding works
+            history_data = {}  # data_provider.get_vehicle_history(vin)
+            
+            print("Creating vehicle record...")
             # Create vehicle record
             vehicle = BMWVehicle.objects.create(**vehicle_data)
+            print(f"Vehicle created: {vehicle.vin}")
             
             # Add history data to response
             response_data = BMWVehicleSerializer(vehicle).data
@@ -159,33 +181,79 @@ class VINDecodeViewSet(viewsets.ViewSet):
             return self._prepare_response(response_data, request.user)
             
         except Exception as e:
+            print(f"EXCEPTION in VIN decode: {str(e)}")
+            import traceback
+            traceback.print_exc()  # This will show the full stack trace
             return Response({'error': str(e)}, status=400)
+
+    def _get_vehicle_data(self, vin):
+        """
+        Get vehicle data from NHTSA API and transform it to our format
+        """
+        try:
+            # Fetch data from NHTSA API
+            nhtsa_data = self._fetch_nhtsa_data(vin)
+            
+            # Transform to our format
+            vehicle_data = self._transform_nhtsa_to_bmw(nhtsa_data, vin)
+            
+            return vehicle_data
+            
+        except Exception as e:
+            # Log the error and re-raise
+            print(f"Error getting vehicle data for VIN {vin}: {str(e)}")
+            raise Exception(f"Failed to fetch vehicle data: {str(e)}")
                 
     def _fetch_nhtsa_data(self, vin):
         """Fetch data from NHTSA API"""
-        url = f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVINValues/{vin}?format=json"
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        return response.json()
+        try:
+            url = f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVINValues/{vin}?format=json"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            return response.json()
     
+        except requests.RequestException as e:
+            raise Exception(f"NHTSA API request failed: {str(e)}")
+        except ValueError as e:
+            raise Exception(f"Failed to parse NHTSA response: {str(e)}")
+
     def _transform_nhtsa_to_bmw(self, nhtsa_data, vin):
-        """Transform NHTSA data to BMW format"""
+        """Transform NHTSA data to BMW format with validation"""
         results = nhtsa_data.get('Results', [{}])[0]
+        
+        # Handle missing data gracefully with defaults
+        def get_safe(key, default='Unknown'):
+            value = results.get(key)
+            return value if value not in [None, '', 'Not Applicable'] else default
+        
+        # Handle model_year conversion safely
+        model_year = get_safe('ModelYear', '2020')
+        try:
+            model_year = int(model_year) if model_year and str(model_year).isdigit() else 2020
+        except (ValueError, TypeError):
+            model_year = 2020
+        
+        # Handle horsepower conversion safely  
+        horsepower = get_safe('EngineHP')
+        try:
+            horsepower = int(horsepower) if horsepower and str(horsepower).isdigit() else None
+        except (ValueError, TypeError):
+            horsepower = None
         
         return {
             'vin': vin,
-            'model': results.get('Model'),
-            'model_year': results.get('ModelYear'),
-            'series': self._extract_series(results.get('Model')),
-            'body_type': results.get('BodyClass'),
-            'engine_code': self._extract_engine_code(results),
-            'transmission_type': results.get('TransmissionStyle'),
-            'drive_type': results.get('DriveType'),
-            'fuel_type': results.get('FuelTypePrimary'),
-            'assembly_plant': self._extract_plant(vin),
-            'horsepower': results.get('EngineHP'),
+            'model': get_safe('Model', 'Unknown BMW Model'),
+            'model_year': model_year,
+            'series': self._extract_series(get_safe('Model')),
+            'body_type': get_safe('BodyClass', 'Sedan'),
+            'engine_code': self._extract_engine_code(results) or 'Unknown',
+            'transmission_type': get_safe('TransmissionStyle', 'Automatic'),
+            'drive_type': get_safe('DriveType', 'RWD'),
+            'fuel_type': get_safe('FuelTypePrimary', 'Gasoline'),
+            'assembly_plant': self._extract_plant(vin) or 'Unknown',
+            'horsepower': horsepower,
             'data_source': 'nhtsa',
-            'data_confidence': 0.7  # NHTSA data is decent but not perfect
+            'data_confidence': 0.7
         }
     
     def _extract_series(self, model_name):
@@ -224,7 +292,6 @@ class VINDecodeViewSet(viewsets.ViewSet):
             'F': 'Spartanburg, USA',
             'G': 'Graz, Austria',
             'H': 'Oxford, UK',
-            # Add more plant codes
         }
         return plant_codes.get(vin[10], 'Unknown')
     
@@ -246,17 +313,28 @@ class VINDecodeViewSet(viewsets.ViewSet):
             return Response(data)
 
 # ===== PAYMENT VIEWS =====
+# ===== PAYSTACK PAYMENT VIEWS =====
 class PaymentViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
     
     def create(self, request):
-        plan_id = request.data.get('plan_id')
-        amount = 1500  # 1500 KES for premium
+        vin = request.data.get('vin')
+        plan_id = request.data.get('plan_id', 'premium')
+        
+        # Set amount based on plan (in KES)
+        plan_prices = {
+            'basic': 500,      # 500 KES
+            'premium': 1500,   # 1500 KES
+            'pro': 3000        # 3000 KES
+        }
+        
+        amount = plan_prices.get(plan_id, 1500)
         
         try:
             paystack = PaystackPayment()
             
             # Create unique reference
+            import uuid
             reference = f"bvin_{uuid.uuid4().hex[:10]}"
             
             # Initialize Paystack payment
@@ -264,10 +342,11 @@ class PaymentViewSet(viewsets.ViewSet):
                 email=request.user.email,
                 amount=amount * 100,  # Convert to kobo
                 reference=reference,
-                callback_url=f"{settings.FRONTEND_URL}/payment-verify?success=true",
+                callback_url=f"{settings.FRONTEND_URL}/payment/verify?success=true",
                 metadata={
                     'user_id': str(request.user.id),
                     'plan_id': plan_id,
+                    'vin': vin,
                     'product': 'Premium VIN Report'
                 }
             )
@@ -280,17 +359,109 @@ class PaymentViewSet(viewsets.ViewSet):
                 currency='KES',
                 status='pending',
                 payment_gateway='paystack',
-                plan_id=plan_id
+                vin=vin
             )
             
             return Response({
                 'authorization_url': payment_data['data']['authorization_url'],
-                'reference': reference
+                'reference': reference,
+                'amount': amount,
+                'currency': 'KES'
             })
             
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-                        
+
+               # ===== PAYSTACK WEBHOOK VIEW =====
+class PaystackWebhookViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.AllowAny]
+    
+    def create(self, request):
+        try:
+            from .paystack_handler import PaystackPayment
+            
+            paystack = PaystackPayment()
+            
+            # Verify webhook signature
+            signature = request.headers.get('x-paystack-signature', '')
+            if not paystack.verify_webhook_signature(request.body, signature):
+                return Response({'error': 'Invalid signature'}, status=400)
+            
+            # Process the webhook event
+            event_data = request.data
+            result = paystack.handle_webhook_event(event_data)
+            
+            if result:
+                if result['action'] == 'payment_success':
+                    self._handle_payment_success(result)
+                elif result['action'] == 'payment_failed':
+                    self._handle_payment_failure(result)
+            
+            return Response({'status': 'success', 'processed': True})
+            
+        except Exception as e:
+            print(f"Webhook error: {str(e)}")
+            return Response({'error': str(e)}, status=400)
+    
+    def _handle_payment_success(self, data):
+        """Handle successful payment from webhook"""
+        reference = data['reference']
+        amount = data['amount']
+        metadata = data['metadata']
+        
+        try:
+            # Find the transaction
+            transaction = PaymentTransaction.objects.get(
+                payment_reference=reference,
+                status='pending'
+            )
+            
+            # Verify payment with Paystack API (double-check)
+            from .paystack_handler import PaystackPayment
+            paystack = PaystackPayment()
+            verification = paystack.verify_payment(reference)
+            
+            if verification['status'] and verification['data']['status'] == 'success':
+                # Update transaction
+                transaction.status = 'completed'
+                transaction.amount = amount
+                transaction.payment_gateway_data = verification['data']
+                transaction.completed_at = timezone.now()
+                transaction.save()
+                
+                # Upgrade user to premium
+                user = transaction.user
+                user.premium_status = True
+                user.premium_since = timezone.now()
+                user.save()
+                
+                print(f"Payment successful for user: {user.email}, Amount: {amount} KES")
+                
+        except PaymentTransaction.DoesNotExist:
+            print(f"Transaction not found for reference: {reference}")
+            # You might want to create a transaction here if it doesn't exist
+        except Exception as e:
+            print(f"Error processing payment: {str(e)}")
+    
+    def _handle_payment_failure(self, data):
+        """Handle failed payment"""
+        reference = data['reference']
+        
+        try:
+            transaction = PaymentTransaction.objects.get(
+                payment_reference=reference,
+                status='pending'
+            )
+            
+            transaction.status = 'failed'
+            transaction.completed_at = timezone.now()
+            transaction.save()
+            
+            print(f"Payment failed for reference: {reference}")
+            
+        except PaymentTransaction.DoesNotExist:
+            print(f"Transaction not found for failed payment: {reference}")
+                               
 # ===== STRIPE WEBHOOK VIEW =====
 class StripeWebhookViewSet(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
@@ -301,7 +472,7 @@ class StripeWebhookViewSet(viewsets.ViewSet):
         
         try:
             event = stripe.Webhook.construct_event(
-                payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+                payload, sig_header, settings.STRIPE_WEBHOOK_SECRET)
             return Response({'error': 'Invalid payload'}, status=400)
         except stripe.error.SignatureVerificationError:
             return Response({'error': 'Invalid signature'}, status=400)

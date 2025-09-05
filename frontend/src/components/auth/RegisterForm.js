@@ -8,8 +8,8 @@ const RegisterForm = ({ onSwitchMode, onSuccess }) => {
     username: '',
     email: '',
     password: '',
-    passwordConfirm: '',
-    marketingConsent: false
+    password_confirm: '',  // Change to underscore
+    marketing_consent: false  // Change to underscore
   });
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
@@ -17,7 +17,7 @@ const RegisterForm = ({ onSwitchMode, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (formData.password !== formData.passwordConfirm) {
+    if (formData.password !== formData.password_confirm) {
       toast.error('Passwords do not match');
       return;
     }
@@ -96,9 +96,9 @@ const RegisterForm = ({ onSwitchMode, onSuccess }) => {
             <input
               type="password"
               className="form-control"
-              id="passwordConfirm"
-              name="passwordConfirm"
-              value={formData.passwordConfirm}
+              id="password_confirm"
+              name="password_confirm"
+              value={formData.password_confirm}
               onChange={handleChange}
               required
               disabled={loading}
@@ -111,7 +111,7 @@ const RegisterForm = ({ onSwitchMode, onSuccess }) => {
               className="form-check-input"
               id="marketingConsent"
               name="marketingConsent"
-              checked={formData.marketingConsent}
+              checked={formData.marketing_consent}
               onChange={handleChange}
               disabled={loading}
             />

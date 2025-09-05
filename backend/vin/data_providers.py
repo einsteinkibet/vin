@@ -1,227 +1,228 @@
 import requests
+import logging
 from django.conf import settings
-import redis
 from django.core.cache import cache
-import json
- 
-class VehicleHistoryAPI:
-    def __init__(self):
-        self.providers = {
-            'carfax': self._fetch_carfax,
-            'autocheck': self._fetch_autocheck,
-            'nhtsa': self._fetch_nhtsa_recalls,
-        }
-    
-    def get_complete_history(self, vin):
-        """Get complete vehicle history from multiple sources"""
-        history_data = {
-            'accidents': [],
-            'owners': [],
-            'services': [],
-            'recalls': [],
-            'titles': []
-        }
-        
-        # Fetch from all available providers
-        for provider_name, provider_func in self.providers.items():
-            try:
-                provider_data = provider_func(vin)
-                history_data = self._merge_history_data(history_data, provider_data)
-            except Exception as e:
-                print(f"Error fetching from {provider_name}: {str(e)}")
-        
-        return history_data
-    
-    def _fetch_carfax(self, vin):
-        """Fetch data from CarFax API"""
-        # Implement CarFax integration
-        pass
-    
-    def _fetch_autocheck(self, vin):
-        """Fetch data from AutoCheck API"""
-        # Implement AutoCheck integration
-        pass
-    
-    def _fetch_nhtsa_recalls(self, vin):
-        """Fetch recall data from NHTSA"""
-        url = f"https://api.nhtsa.gov/recalls/recallsByVIN?vin={vin}"
-        response = requests.get(url)
-        response.raise_for_status()
-        return response.json()
+from .models import BMWVehicle, VehicleOption, OptionCompatibility
 
-# Initialize Redis if available
-try:
-    redis_client = redis.Redis(
-        host=settings.REDIS_HOST, 
-        port=settings.REDIS_PORT, 
-        db=0
-    )
-except:
-    redis_client = None
+logger = logging.getLogger(__name__)
 
-class DataProvider:
+class DataProviderBase:
+    """Base class for all data providers"""
+    
     def __init__(self):
-        self.cache_timeout = 3600  # 1 hour cache
+        self.name = "base_provider"
+        self.priority = 0
+        self.cache_timeout = 86400  # 24 hours
     
-    def get_vehicle_history(self, vin, force_refresh=False):
-        """Get vehicle history with caching"""
-        cache_key = f'vehicle_history_{vin}'
-        
-        # Try to get from cache first
-        if not force_refresh:
-            cached_data = self._get_from_cache(cache_key)
-            if cached_data:
-                return cached_data
-        
-        # Fetch from data providers
-        history_data = self._fetch_from_providers(vin)
-        
-        # Cache the results
-        self._set_cache(cache_key, history_data)
-        
-        return history_data
+    def get_vehicle_data(self, vin):
+        """Get vehicle data from provider"""
+        raise NotImplementedError("Subclasses must implement get_vehicle_data")
     
-    def _fetch_from_providers(self, vin):
-        """Fetch data from multiple providers"""
-        history_data = {
-            'accidents': [],
-            'owners': [],
-            'services': [],
-            'recalls': self._fetch_nhtsa_recalls(vin),
-            'market_value': self._fetch_market_value(vin)
-        }
-        
-        # Try CarFax if API key available
-        if hasattr(settings, 'CARFAX_API_KEY'):
-            history_data.update(self._fetch_carfax(vin))
-        
-        # Try AutoCheck if API key available  
-        if hasattr(settings, 'AUTOCHECK_API_KEY'):
-            history_data.update(self._fetch_autocheck(vin))
-            
-        return history_data
+    def get_options_data(self, vin):
+        """Get options data from provider"""
+        raise NotImplementedError("Subclasses must implement get_options_data")
     
-    def _fetch_nhtsa_recalls(self, vin):
-        """Fetch recalls from NHTSA (free)"""
+    def is_available(self):
+        """Check if provider is available"""
+        return True
+
+class BMWAPIDataProvider(DataProviderBase):
+    """BMW Official API Data Provider"""
+    
+    def __init__(self):
+        super().__init__()
+        self.name = "bmw_official_api"
+        self.priority = 100
+        self.base_url = getattr(settings, 'BMW_API_URL', 'https://b2b.bmwgroup.com/api/')
+        self.api_key = getattr(settings, 'BMW_API_KEY', None)
+    
+    def is_available(self):
+        return self.api_key is not None
+    
+    def get_vehicle_data(self, vin):
+        cache_key = f'vehicle_{vin}_{self.name}'
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return cached_data
+        
         try:
-            url = f"https://api.nhtsa.gov/recalls/recallsByVIN?vin={vin}"
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            return response.json().get('results', [])
-        except:
-            return []
+            headers = {
+                'Authorization': f'Bearer {self.api_key}',
+                'Content-Type': 'application/json'
+            }
+            
+            response = requests.get(
+                f'{self.base_url}vehicles/{vin}',
+                headers=headers,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                cache.set(cache_key, data, self.cache_timeout)
+                return data
+                
+        except requests.RequestException as e:
+            logger.error(f"BMW API request failed: {e}")
+        
+        return None
+
+class NHTSADataProvider:
+    def __init__(self):
+        self.name = "nhtsa_api"
+        self.base_url = "https://vpic.nhtsa.dot.gov/api/vehicles"
     
-    def _fetch_market_value(self, vin):
-        """Fetch market value from Kelley Blue Book or similar"""
-        # This would be a paid API integration
+    def get_vehicle_data(self, vin):
+        cache_key = f'vehicle_{vin}_nhtsa'
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return cached_data
+        
+        try:
+            response = requests.get(
+                f'{self.base_url}/decodevinvalues/{vin}?format=json',
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('Results'):
+                    result = data['Results'][0]
+                    # Normalize NHTSA data to our schema
+                    normalized_data = {
+                        'vin': result.get('VIN', ''),
+                        'model': result.get('Model', ''),
+                        'model_year': result.get('ModelYear', ''),
+                        'series': result.get('Series', ''),
+                        'body_type': result.get('BodyClass', ''),
+                        'engine_code': result.get('EngineConfiguration', ''),
+                        'transmission_type': result.get('TransmissionStyle', ''),
+                        'drive_type': result.get('DriveType', ''),
+                        'fuel_type': result.get('FuelTypePrimary', ''),
+                        'manufacturer': result.get('Manufacturer', ''),
+                        'plant_country': result.get('PlantCountry', ''),
+                        'plant_company_name': result.get('PlantCompanyName', ''),
+                        'plant_state': result.get('PlantState', ''),
+                        'data_source': 'nhtsa',
+                        'data_confidence': 0.85
+                    }
+                    cache.set(cache_key, normalized_data, 86400)  # 24 hours
+                    return normalized_data
+                    
+        except requests.RequestException as e:
+            print(f"NHTSA API request failed: {e}")
+        
+        return None
+
+class CarfaxDataProvider(DataProviderBase):
+    """Carfax Data Provider for History Reports"""
+    
+    def __init__(self):
+        super().__init__()
+        self.name = "carfax_api"
+        self.priority = 80
+        self.api_key = getattr(settings, 'CARFAX_API_KEY', None)
+        self.base_url = getattr(settings, 'CARFAX_API_URL', 'https://api.carfax.com/v2/')
+    
+    def is_available(self):
+        return self.api_key is not None
+    
+    def get_vehicle_history(self, vin):
+        cache_key = f'history_{vin}_{self.name}'
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return cached_data
+        
+        try:
+            headers = {
+                'Authorization': f'Bearer {self.api_key}',
+                'Content-Type': 'application/json'
+            }
+            
+            response = requests.get(
+                f'{self.base_url}vehicles/{vin}/history',
+                headers=headers,
+                timeout=15
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                cache.set(cache_key, data, self.cache_timeout)
+                return data
+                
+        except requests.RequestException as e:
+            logger.error(f"Carfax API request failed: {e}")
+        
+        return None
+
+class DataProviderManager:
+    """Manager class to handle multiple data providers"""
+    
+    def __init__(self):
+        self.providers = []
+        self._register_providers()
+    
+    def _register_providers(self):
+        # Register all available providers
+        self.providers.append(BMWAPIDataProvider())
+        self.providers.append(NHTSADataProvider())
+        self.providers.append(CarfaxDataProvider())
+        
+        # Sort by priority (highest first)
+        self.providers.sort(key=lambda x: x.priority, reverse=True)
+    
+    def get_vehicle_data(self, vin):
+        """Get vehicle data from the best available provider"""
+        for provider in self.providers:
+            if provider.is_available():
+                data = provider.get_vehicle_data(vin)
+                if data:
+                    return self._normalize_vehicle_data(data, provider.name)
+        
         return None
     
-    def _get_from_cache(self, key):
-        """Get data from cache"""
-        try:
-            if redis_client:
-                cached = redis_client.get(key)
-                if cached:
-                    return json.loads(cached)
-            else:
-                return cache.get(key)
-        except:
-            return None
+    def get_vehicle_history(self, vin):
+        """Get vehicle history data"""
+        for provider in self.providers:
+            if hasattr(provider, 'get_vehicle_history') and provider.is_available():
+                data = provider.get_vehicle_history(vin)
+                if data:
+                    return data
+        
+        return None
     
-    def _set_cache(self, key, data):
-        """Set data in cache"""
-        try:
-            if redis_client:
-                redis_client.setex(key, self.cache_timeout, json.dumps(data))
-            else:
-                cache.set(key, data, self.cache_timeout)
-        except:
-            pass
+    def _normalize_vehicle_data(self, data, provider_name):
+        """Normalize data from different providers to our schema"""
+        normalized = {}
+        
+        if provider_name == "bmw_official_api":
+            normalized = {
+                'vin': data.get('vin', ''),
+                'model': data.get('modelDescription', ''),
+                'model_year': data.get('modelYear', ''),
+                'series': data.get('series', ''),
+                'body_type': data.get('bodyType', ''),
+                'engine_code': data.get('engineCode', ''),
+                'transmission_type': data.get('transmissionType', ''),
+                'drive_type': data.get('driveType', ''),
+                'fuel_type': data.get('fuelType', ''),
+                'assembly_plant': data.get('assemblyPlant', ''),
+            }
+        
+        elif provider_name == "nhtsa_api":
+            normalized = {
+                'vin': data.get('VIN', ''),
+                'model': data.get('Model', ''),
+                'model_year': data.get('ModelYear', ''),
+                'series': data.get('Series', ''),
+                'body_type': data.get('BodyClass', ''),
+                'engine_code': data.get('EngineConfiguration', ''),
+                'transmission_type': data.get('TransmissionStyle', ''),
+                'drive_type': data.get('DriveType', ''),
+                'fuel_type': data.get('FuelTypePrimary', ''),
+            }
+        
+        return normalized
 
-# Singleton instance
-data_provider = DataProvider()
-
-
-
-import requests
-import redis
-from django.conf import settings
-from django.core.cache import cache
-import json
-from .models import VehicleAccident, OwnershipHistory, ServiceHistory, RecallInformation
-
-class DataProvider:
-    def __init__(self):
-        self.redis_client = redis.Redis(
-            host=settings.REDIS_HOST,
-            port=settings.REDIS_PORT,
-            db=0,
-            decode_responses=True
-        )
-    
-    def get_vehicle_history(self, vin, force_refresh=False):
-        """Get complete vehicle history with caching"""
-        cache_key = f"vehicle_history:{vin}"
-        
-        # Try to get from cache first
-        if not force_refresh:
-            cached_data = self.redis_client.get(cache_key)
-            if cached_data:
-                return json.loads(cached_data)
-        
-        # Fetch from all data providers
-        history_data = {
-            'accidents': self.get_accidents(vin),
-            'owners': self.get_ownership(vin),
-            'services': self.get_service_history(vin),
-            'recalls': self.get_recalls(vin),
-            'market_value': self.get_market_value(vin)
-        }
-        
-        # Cache for 24 hours
-        self.redis_client.setex(cache_key, 86400, json.dumps(history_data))
-        
-        return history_data
-    
-    def get_accidents(self, vin):
-        """Get accident history from multiple sources"""
-        accidents = []
-        
-        # Try CarFax API
-        try:
-            carfax_data = self._fetch_carfax(vin)
-            accidents.extend(self._parse_carfax_accidents(carfax_data))
-        except Exception as e:
-            print(f"CarFax error: {str(e)}")
-        
-        # Try AutoCheck API
-        try:
-            autocheck_data = self._fetch_autocheck(vin)
-            accidents.extend(self._parse_autocheck_accidents(autocheck_data))
-        except Exception as e:
-            print(f"AutoCheck error: {str(e)}")
-        
-        return accidents
-    
-    def _fetch_carfax(self, vin):
-        """Fetch data from CarFax API"""
-        # Implement CarFax integration
-        # You'll need CarFax API credentials
-        pass
-    
-    def _fetch_autocheck(self, vin):
-        """Fetch data from AutoCheck API"""
-        # Implement AutoCheck integration
-        # You'll need AutoCheck API credentials
-        pass
-    
-    def get_recalls(self, vin):
-        """Get recall data from NHTSA"""
-        try:
-            url = f"https://api.nhtsa.gov/recalls/recallsByVIN?vin={vin}"
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            return response.json().get('results', [])
-        except Exception as e:
-            print(f"NHTSA recall error: {str(e)}")
-            return []
+# Global instance
+data_provider_manager = DataProviderManager()
