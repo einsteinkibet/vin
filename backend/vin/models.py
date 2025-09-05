@@ -144,6 +144,9 @@ class PaymentTransaction(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     vin = models.CharField(max_length=17)
+    payment_reference = models.CharField(max_length=100, unique=True)
+    payment_gateway = models.CharField(max_length=20, default='paystack')
+    currency = models.CharField(max_length=3, default='KES')
     
     class Meta:
         db_table = 'payment_transactions'
@@ -278,3 +281,159 @@ class ContentPage(models.Model):
     
     class Meta:
         db_table = 'content_pages'
+
+# ===== VEHICLE HISTORY & ACCIDENT MODELS =====
+class VehicleAccident(models.Model):
+    ACCIDENT_TYPES = [
+        ('collision', 'Collision'),
+        ('flood', 'Flood Damage'),
+        ('fire', 'Fire Damage'),
+        ('hail', 'Hail Damage'),
+        ('vandalism', 'Vandalism'),
+        ('other', 'Other'),
+    ]
+    
+    SEVERITY_CHOICES = [
+        ('minor', 'Minor'),
+        ('moderate', 'Moderate'),
+        ('severe', 'Severe'),
+        ('total', 'Total Loss'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    vehicle = models.ForeignKey(BMWVehicle, on_delete=models.CASCADE, related_name='accidents')
+    accident_date = models.DateField()
+    accident_type = models.CharField(max_length=20, choices=ACCIDENT_TYPES)
+    severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES)
+    description = models.TextField(blank=True, null=True)
+    estimated_damage = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    airbags_deployed = models.BooleanField(default=False)
+    police_report = models.BooleanField(default=False)
+    insurance_claim = models.BooleanField(default=False)
+    source = models.CharField(max_length=100)  # 'carfax', 'autocheck', 'user_reported'
+    reported_date = models.DateTimeField(auto_now_add=True)
+    verified = models.BooleanField(default=False)
+    
+    class Meta:
+        db_table = 'vehicle_accidents'
+        indexes = [
+            models.Index(fields=['vehicle', 'accident_date']),
+        ]
+
+class OwnershipHistory(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    vehicle = models.ForeignKey(BMWVehicle, on_delete=models.CASCADE, related_name='owners')
+    owner_number = models.IntegerField()  # 1st owner, 2nd owner, etc.
+    purchase_date = models.DateField()
+    sale_date = models.DateField(null=True, blank=True)
+    owner_type = models.CharField(max_length=20, choices=[
+        ('personal', 'Personal'),
+        ('lease', 'Lease'),
+        ('rental', 'Rental'),
+        ('commercial', 'Commercial'),
+        ('dealer', 'Dealer'),
+    ])
+    owner_location = models.CharField(max_length=100, blank=True, null=True)
+    miles_at_purchase = models.IntegerField(null=True, blank=True)
+    miles_at_sale = models.IntegerField(null=True, blank=True)
+    source = models.CharField(max_length=100)
+    
+    class Meta:
+        db_table = 'ownership_history'
+        ordering = ['owner_number']
+
+class ServiceHistory(models.Model):
+    SERVICE_TYPES = [
+        ('oil', 'Oil Change'),
+        ('brakes', 'Brake Service'),
+        ('tires', 'Tire Replacement'),
+        ('battery', 'Battery Replacement'),
+        ('transmission', 'Transmission Service'),
+        ('coolant', 'Coolant Flush'),
+        ('timing_belt', 'Timing Belt'),
+        ('recall', 'Recall Service'),
+        ('other', 'Other Service'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    vehicle = models.ForeignKey(BMWVehicle, on_delete=models.CASCADE, related_name='services')
+    service_date = models.DateField()
+    service_type = models.CharField(max_length=20, choices=SERVICE_TYPES)
+    service_description = models.TextField()
+    mileage = models.IntegerField()
+    cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    service_center = models.CharField(max_length=200, blank=True, null=True)
+    warranty_work = models.BooleanField(default=False)
+    receipts_available = models.BooleanField(default=False)
+    source = models.CharField(max_length=100)
+    
+    class Meta:
+        db_table = 'service_history'
+        indexes = [
+            models.Index(fields=['vehicle', 'service_date']),
+        ]
+
+class TitleHistory(models.Model):
+    TITLE_TYPES = [
+        ('clean', 'Clean'),
+        ('salvage', 'Salvage'),
+        ('rebuilt', 'Rebuilt'),
+        ('flood', 'Flood'),
+        ('lemon', 'Lemon Law'),
+        ('junk', 'Junk'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    vehicle = models.ForeignKey(BMWVehicle, on_delete=models.CASCADE, related_name='titles')
+    title_date = models.DateField()
+    title_type = models.CharField(max_length=20, choices=TITLE_TYPES)
+    title_state = models.CharField(max_length=2)  # State code
+    lien_holder = models.CharField(max_length=200, blank=True, null=True)
+    odometer_reading = models.IntegerField()
+    source = models.CharField(max_length=100)
+    
+    class Meta:
+        db_table = 'title_history'
+        ordering = ['-title_date']
+
+class RecallInformation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    vehicle = models.ForeignKey(BMWVehicle, on_delete=models.CASCADE, related_name='recalls')
+    recall_id = models.CharField(max_length=50)
+    recall_date = models.DateField()
+    component = models.CharField(max_length=200)
+    description = models.TextField()
+    consequence = models.TextField()
+    remedy = models.TextField()
+    nhtsa_campaign_number = models.CharField(max_length=50, blank=True, null=True)
+    status = models.CharField(max_length=20, choices=[
+        ('open', 'Open'),
+        ('closed', 'Closed'),
+        ('completed', 'Completed'),
+    ])
+    
+    class Meta:
+        db_table = 'recall_information'
+        indexes = [
+            models.Index(fields=['vehicle', 'recall_date']),
+        ]
+
+class MarketValue(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    vehicle = models.ForeignKey(BMWVehicle, on_delete=models.CASCADE, related_name='market_values')
+    valuation_date = models.DateField()
+    source = models.CharField(max_length=100)  # 'kbb', 'nada', 'edmunds'
+    retail_value = models.DecimalField(max_digits=10, decimal_places=2)
+    trade_in_value = models.DecimalField(max_digits=10, decimal_places=2)
+    private_party_value = models.DecimalField(max_digits=10, decimal_places=2)
+    mileage_adjustment = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    condition = models.CharField(max_length=20, choices=[
+        ('excellent', 'Excellent'),
+        ('good', 'Good'),
+        ('fair', 'Fair'),
+        ('poor', 'Poor'),
+    ])
+    
+    class Meta:
+        db_table = 'market_values'
+        ordering = ['-valuation_date']

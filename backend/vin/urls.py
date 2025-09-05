@@ -30,4 +30,7 @@ urlpatterns = [
     path('dashboard/vin-history/', views.VINHistoryViewSet.as_view({'get': 'list'}), name='vin-history'),
     # DRF auth URLs for browsable API - KEEP THIS ONLY ONCE
     path('auth-api/', include('rest_framework.urls', namespace='rest_framework')),
+    # Add this to your urlpatterns
+    path('webhook/paystack/', views.PaystackWebhookViewSet.as_view({'post': 'create'}), name='paystack-webhook'),
+    
 ]

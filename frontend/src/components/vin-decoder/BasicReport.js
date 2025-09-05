@@ -85,3 +85,31 @@ const BasicReport = () => {
 };
 
 export default BasicReport;
+
+
+import PaymentButton from '../payment/PaymentButton';
+
+const BasicReport = () => {
+  // ... existing code ...
+  
+  return (
+    <div className="card">
+      {/* ... existing code ... */}
+      
+      <div className="alert alert-info mt-4">
+        <div className="d-flex align-items-center">
+          <i className="fas fa-lock me-3 fa-2x"></i>
+          <div>
+            <h6 className="mb-1">Unlock Full Vehicle Report</h6>
+            <p className="mb-2">Get complete access to accident history, ownership records, and premium features.</p>
+            <PaymentButton 
+              planId="premium" 
+              amount={500}  // KES 500 for premium
+              vin={currentVehicle.vin}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

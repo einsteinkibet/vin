@@ -7,8 +7,6 @@ import Specifications from './Specifications';
 const PremiumReport = () => {
   const { currentVehicle } = useSelector(state => state.vin);
 
-  if (!currentVehicle) return null;
-
   return (
     <div className="card">
       <div className="card-header bg-success text-white">
@@ -17,63 +15,80 @@ const PremiumReport = () => {
           Premium Vehicle Report
         </h4>
       </div>
+      
       <div className="card-body">
+        {/* Vehicle Header */}
         <div className="row mb-4">
           <div className="col-md-4">
             <VehicleImage vehicle={currentVehicle} />
           </div>
           <div className="col-md-8">
-            <h3 className="mb-3">{currentVehicle.model} ({currentVehicle.model_year})</h3>
-            <div className="row">
+            <h2 className="text-primary">{currentVehicle.model}</h2>
+            <div className="row mt-3">
               <div className="col-6">
                 <strong>VIN:</strong> <code>{currentVehicle.vin}</code>
+              </div>
+              <div className="col-6">
+                <strong>Year:</strong> {currentVehicle.model_year}
               </div>
               <div className="col-6">
                 <strong>Series:</strong> {currentVehicle.series}
               </div>
               <div className="col-6">
-                <strong>Production Date:</strong> {currentVehicle.production_date}
-              </div>
-              <div className="col-6">
-                <strong>Assembly Plant:</strong> {currentVehicle.assembly_plant}
+                <strong>Production:</strong> {currentVehicle.assembly_plant}
               </div>
             </div>
           </div>
         </div>
 
-        <Specifications vehicle={currentVehicle} />
-        
+        {/* Specifications Grid */}
+        <div className="row">
+          <div className="col-md-6">
+            <div className="card mb-4">
+              <div className="card-header bg-light">
+                <h6 className="mb-0">Engine & Performance</h6>
+              </div>
+              <div className="card-body">
+                <SpecificationItem label="Engine Code" value={currentVehicle.engine_code} />
+                <SpecificationItem label="Horsepower" value={currentVehicle.horsepower ? `${currentVehicle.horsepower} HP` : 'N/A'} />
+                <SpecificationItem label="Transmission" value={currentVehicle.transmission_type} />
+                <SpecificationItem label="Drive Type" value={currentVehicle.drive_type} />
+              </div>
+            </div>
+          </div>
+          
+          <div className="col-md-6">
+            <div className="card mb-4">
+              <div className="card-header bg-light">
+                <h6 className="mb-0">Vehicle Details</h6>
+              </div>
+              <div className="card-body">
+                <SpecificationItem label="Body Type" value={currentVehicle.body_type} />
+                <SpecificationItem label="Fuel Type" value={currentVehicle.fuel_type} />
+                <SpecificationItem label="Data Source" value={currentVehicle.data_source} />
+                <SpecificationItem label="Confidence" 
+                  value={(
+                    <div className="progress" style={{height: '8px'}}>
+                      <div className="progress-bar bg-success" 
+                           style={{width: `${currentVehicle.data_confidence * 100}%`}}>
+                      </div>
+                    </div>
+                  )} 
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Factory Options */}
         <OptionsList vehicle={currentVehicle} />
-
-        <div className="mt-4">
-          <h5>Additional Information</h5>
-          <div className="row">
-            <div className="col-md-6">
-              <strong>Data Source:</strong> {currentVehicle.data_source}
-            </div>
-            <div className="col-md-6">
-              <strong>Data Confidence:</strong> 
-              <div className="progress mt-1" style={{height: '8px'}}>
-                <div 
-                  className="progress-bar bg-success" 
-                  style={{width: `${currentVehicle.data_confidence * 100}%`}}
-                ></div>
-              </div>
-              <small className="text-muted">
-                {(currentVehicle.data_confidence * 100).toFixed(1)}% accuracy
-              </small>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 text-center">
-          <button className="btn btn-outline-primary me-2">
-            <i className="fas fa-download me-2"></i>
-            Download PDF Report
-          </button>
-          <button className="btn btn-outline-secondary">
-            <i className="fas fa-share-alt me-2"></i>
-            Share Report
+        
+        {/* Action Buttons */}
+        <div className="text-center mt-4">
+          <ReportPDF vehicle={currentVehicle} />
+          <button className="btn btn-outline-primary ms-2">
+            <i className="fas fa-bookmark me-2"></i>
+            Save Vehicle
           </button>
         </div>
       </div>
@@ -81,4 +96,39 @@ const PremiumReport = () => {
   );
 };
 
-export default PremiumReport;
+// Helper component for specs
+const SpecificationItem = ({ label, value }) => (
+  <div className="d-flex justify-content-between py-2 border-bottom">
+    <span className="text-muted">{label}:</span>
+    <strong>{value}</strong>
+  </div>
+);
+
+
+
+
+import VehicleHistory from './VehicleHistory';
+
+const PremiumReport = () => {
+  // ... existing code ...
+  
+  return (
+    <div className="card">
+      <div className="card-header bg-success text-white">
+        <h4 className="mb-0">
+          <i className="fas fa-crown me-2"></i>
+          Premium Vehicle Report
+        </h4>
+      </div>
+      
+      <div className="card-body">
+        {/* ... existing vehicle info ... */}
+        
+        {/* ADD THIS NEW SECTION */}
+        <VehicleHistory />
+        
+        {/* ... existing options list and other components ... */}
+      </div>
+    </div>
+  );
+};

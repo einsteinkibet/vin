@@ -176,3 +176,30 @@ const PricingPage = () => {
 };
 
 export default PricingPage;
+
+
+import PaymentButton from '../components/payment/PaymentButton';
+
+const PricingPage = () => {
+  // ... existing code ...
+  
+  return (
+    <div className="container py-5">
+      {/* ... existing pricing cards ... */}
+      
+      <div className="col-md-4 mb-4">
+        <div className="card h-100">
+          <div className="card-body">
+            <h5 className="card-title">Premium Report</h5>
+            <p className="price">KES 500</p>
+            <PaymentButton 
+              planId="premium" 
+              amount={500}
+              description="Premium VIN Report"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
